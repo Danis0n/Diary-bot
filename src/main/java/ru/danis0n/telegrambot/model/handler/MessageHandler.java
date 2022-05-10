@@ -7,7 +7,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import ru.danis0n.telegrambot.DAO.UserDAO;
 import ru.danis0n.telegrambot.cash.BotStateCash;
 import ru.danis0n.telegrambot.cash.NoteCash;
-import ru.danis0n.telegrambot.entity.Diary;
+import ru.danis0n.telegrambot.entity.Note;
 import ru.danis0n.telegrambot.model.BotState;
 import ru.danis0n.telegrambot.service.MenuService;
 
@@ -48,7 +48,7 @@ public class MessageHandler {
             case("CREATE"):
                 // starts create note
                 botStateCash.saveBotState(userId,BotState.ENTERNOTE);
-                noteCash.saveNoteCash(userId,new Diary());
+                noteCash.saveNoteCash(userId,new Note());
                 sendMessage.setText("Введите запись");
                 return sendMessage;
             case("ENTERNOTE"):
@@ -68,7 +68,7 @@ public class MessageHandler {
             case("EDITDATE"):
                 return eventHandler.editDate(message);
             case("ENTERNUMBERFOREDIT"):
-                return eventHandler.editDiary(message,userId);
+                return eventHandler.editNote(message,userId);
             case("ENTERNUMBERUSER"):
                 return eventHandler.removeUserHandler(message,userId);
             case("ENTERNUMBERNOTE"):
@@ -77,5 +77,4 @@ public class MessageHandler {
                 throw new IllegalStateException("Unexpected value: " + botState);
         }
     }
-
 }

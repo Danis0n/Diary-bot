@@ -23,7 +23,7 @@ public class User {
     private int timeZone;
 
     @OneToMany(mappedBy="user")
-    private List<Diary> notes;
+    private List<Note> notes;
 
     public User(){
 

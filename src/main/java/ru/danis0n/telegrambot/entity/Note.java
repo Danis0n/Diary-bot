@@ -1,7 +1,6 @@
 package ru.danis0n.telegrambot.entity;
 
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -15,7 +14,7 @@ import java.util.Date;
 @Table(name = "user_notes")
 @Getter
 @Setter
-public class Diary {
+public class Note {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,12 +33,12 @@ public class Diary {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
-    public Diary(){
+    public Note(){
     }
 
-    public Diary(int eventId,
-                 @NotNull(message = "Need date!") Date date,
-                 @Size(min = 4, max = 200, message = "Description must be between 0 and 200 chars!")
+    public Note(int eventId,
+                @NotNull(message = "Need date!") Date date,
+                @Size(min = 4, max = 200, message = "Description must be between 0 and 200 chars!")
                          String description, User user){
         this.eventId = eventId;
         this.date = date;

@@ -5,11 +5,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import ru.danis0n.telegrambot.DAO.DiaryDAO;
+import ru.danis0n.telegrambot.DAO.NoteDAO;
 import ru.danis0n.telegrambot.DAO.UserDAO;
 import ru.danis0n.telegrambot.cash.BotStateCash;
 import ru.danis0n.telegrambot.cash.NoteCash;
-import ru.danis0n.telegrambot.entity.Diary;
+import ru.danis0n.telegrambot.entity.Note;
 import ru.danis0n.telegrambot.entity.User;
 import ru.danis0n.telegrambot.model.BotState;
 import ru.danis0n.telegrambot.service.MenuService;
@@ -25,7 +25,7 @@ import java.util.List;
 public class EventHandler {
 
     private final UserDAO userDAO;
-    private final DiaryDAO diaryDAO;
+    private final NoteDAO noteDAO;
     private final BotStateCash botStateCash;
     private final MenuService menuService;
     private final NoteCash noteCash;
@@ -33,9 +33,9 @@ public class EventHandler {
     @Value("${telegrambot.adminId}")
     private int admin_id;
 
-    public EventHandler(UserDAO userDAO, DiaryDAO diaryDAO, BotStateCash botStateCash, MenuService menuService, NoteCash noteCash) {
+    public EventHandler(UserDAO userDAO, NoteDAO noteDAO, BotStateCash botStateCash, MenuService menuService, NoteCash noteCash) {
         this.userDAO = userDAO;
-        this.diaryDAO = diaryDAO;
+        this.noteDAO = noteDAO;
         this.botStateCash = botStateCash;
         this.menuService = menuService;
         this.noteCash = noteCash;
@@ -78,7 +78,7 @@ public class EventHandler {
 
     // gets all events (admin only)
     public SendMessage getAllNotes(long userId){
-        List<Diary> notes = diaryDAO.findAllDiaries();
+        List<Note> notes = noteDAO.findAllNotes();
         botStateCash.saveBotState(userId,BotState.START);
         return noteListBuilder(userId,notes);
     }
@@ -100,12 +100,12 @@ public class EventHandler {
 
     // gets all events of user
     public SendMessage myNotes(long userId){
-        List<Diary> notes = diaryDAO.findByUserId(userId);
+        List<Note> notes = noteDAO.findByUserId(userId);
         return noteListBuilder(userId,notes);
     }
 
     // builds the notes for user to show
-    public SendMessage noteListBuilder(long userId, List<Diary> list) {
+    public SendMessage noteListBuilder(long userId, List<Note> list) {
         SendMessage replyMessage = new SendMessage();
         replyMessage.setChatId(String.valueOf(userId));
         StringBuilder builder = new StringBuilder();
@@ -113,7 +113,7 @@ public class EventHandler {
             replyMessage.setText("Записи отсутствуют");
             return replyMessage;
         }
-        for (Diary note : list){
+        for (Note note : list){
             builder.append(buildNote(note));
         }
         replyMessage.setText(builder.toString());
@@ -140,9 +140,9 @@ public class EventHandler {
             sendMessage.setText("Не удается распознать указанную дату и время, попробуйте еще раз");
             return sendMessage;
         }
-        Diary diary = noteCash.getEventMap().get(userId);
-        diary.setDate(date);
-        noteCash.saveNoteCash(userId,diary);
+        Note note = noteCash.getEventMap().get(userId);
+        note.setDate(date);
+        noteCash.saveNoteCash(userId, note);
         return editNote(message.getChatId(),userId);
     }
 
@@ -156,18 +156,18 @@ public class EventHandler {
             sendMessage.setText("Недопустимая длина символов. Необходимое количество символов: 4 - 200");
             return sendMessage;
         }
-        Diary note = noteCash.getEventMap().get(userId);
+        Note note = noteCash.getEventMap().get(userId);
         note.setDescription(text);
 
         noteCash.saveNoteCash(userId,note);
         return editNote(message.getChatId(),userId);
     }
 
-    public SendMessage editDiary(Message message, long userId){
+    public SendMessage editNote(Message message, long userId){
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(message.getChatId()));
 
-        Diary note;
+        Note note;
         try {
             note = enterNumberNote(message.getText(),userId);
         } catch (NumberFormatException e){
@@ -196,7 +196,7 @@ public class EventHandler {
             return sendMessage;
         }
         botStateCash.saveBotState(userId,BotState.ENTERDATE);
-        Diary diary = noteCash.getEventMap().get(userId);
+        Note diary = noteCash.getEventMap().get(userId);
         diary.setDescription(note);
         noteCash.saveNoteCash(userId,diary);
         sendMessage.setText("Дата будет введена в соответствии с датой вашего устройства");
@@ -213,22 +213,22 @@ public class EventHandler {
             sendMessage.setText("Не удаётся распознать указанную дату и время, попробуйте еще раз");
             return  sendMessage;
         }
-        Diary diary = noteCash.getEventMap().get(userId);
-        diary.setDate(date);
+        Note note = noteCash.getEventMap().get(userId);
+        note.setDate(date);
 
-        noteCash.saveNoteCash(userId,diary);
+        noteCash.saveNoteCash(userId, note);
         sendMessage.setText("Дата успешно введена!");
         saveNote(userId,message.getChatId());
         return sendMessage;
     }
 
-    public Diary enterNumberNote(String message, long userId) throws NumberFormatException, NullPointerException, EntityNotFoundException {
-        List<Diary> list;
+    public Note enterNumberNote(String message, long userId) throws NumberFormatException, NullPointerException, EntityNotFoundException {
+        List<Note> list;
         if(userId == admin_id){
-            list = diaryDAO.findAllDiaries();
+            list = noteDAO.findAllNotes();
         }
         else{
-            list = diaryDAO.findByUserId(userId);
+            list = noteDAO.findByUserId(userId);
         }
         int i = Integer.parseInt(message);
         return list.stream().filter(diary -> diary.getEventId() == i).findFirst().orElseThrow(null);
@@ -238,19 +238,19 @@ public class EventHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(userId));
 
-        Diary diary;
+        Note note;
         try {
-            diary = enterNumberNote(message.getText(),userId);
+            note = enterNumberNote(message.getText(),userId);
         } catch (NumberFormatException e){
             sendMessage.setText("Введенная строка не является числом, попробуйте снова!");
             return sendMessage;
         }
-        if(diary == null){
+        if(note == null){
             sendMessage.setText("Введенное число отсутсвует в списке, попробуйте снова!");
             return sendMessage;
         }
 
-        diaryDAO.remove(diary);
+        noteDAO.remove(note);
         botStateCash.saveBotState(userId,BotState.START);
         sendMessage.setText("Удаление прошло успешно");
         return sendMessage;
@@ -260,19 +260,19 @@ public class EventHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(chatId));
 
-        Diary diary = noteCash.getEventMap().get(userId);
-        if(diary.getEventId() == 0){
+        Note note = noteCash.getEventMap().get(userId);
+        if(note.getEventId() == 0){
             sendMessage.setText("Не удалось сохранить пользователя, нарушена последовательность действий");
             return sendMessage;
         }
-        diaryDAO.save(diary);
+        noteDAO.save(note);
         sendMessage.setText("Изменение сохранено");
-        noteCash.saveNoteCash(userId,new Diary());
+        noteCash.saveNoteCash(userId,new Note());
         return sendMessage;
     }
 
     // builds the note for user to show
-    private StringBuilder buildNote(Diary note) {
+    private StringBuilder buildNote(Note note) {
         StringBuilder stringBuilder = new StringBuilder();
         long noteId = note.getEventId();
         SimpleDateFormat date = new SimpleDateFormat("dd.MM.yyyy HH:mm");
@@ -286,13 +286,13 @@ public class EventHandler {
     }
 
     public SendMessage saveNote(long userId, long chatId){
-        Diary note = noteCash.getEventMap().get(userId);
+        Note note = noteCash.getEventMap().get(userId);
         note.setUser(userDAO.findByUserId(userId));
 
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(chatId));
-        diaryDAO.save(note);
-        noteCash.saveNoteCash(userId,new Diary());
+        noteDAO.save(note);
+        noteCash.saveNoteCash(userId,new Note());
         sendMessage.setText("Запись успешно сохранена!");
         botStateCash.saveBotState(userId,BotState.START);
         return sendMessage;
